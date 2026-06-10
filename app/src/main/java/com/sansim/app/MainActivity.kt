@@ -907,54 +907,56 @@ fun shareExportFile(ctx:Context,fileName:String,mime:String,content:String,title
 }
 
 @Composable fun FilterToolRow(filter:String,sortMode:String,onFilter:(String)->Unit,onSort:()->Unit,count:Int){
-    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.spacedBy(8.dp),verticalAlignment=Alignment.CenterVertically){
-        FilterTool("≡",filter,Modifier.weight(1f)){onFilter(when(filter){"全部"->"正常";"正常"->"即将到期";"即将到期"->"已过期";else->"全部"})}
-        FilterTool("↕",if(sortMode=="到期近") L("近到远") else L("远到近"),Modifier.weight(1f)){onSort()}
-        Text("$count",fontSize=14.sp,fontWeight=FontWeight.Bold,color=Color(0xFF007AFF))
+    Row(Modifier.fillMaxWidth(),horizontalArrangement=Arrangement.Center,verticalAlignment=Alignment.CenterVertically){
+        Row(horizontalArrangement=Arrangement.spacedBy(6.dp),verticalAlignment=Alignment.CenterVertically){
+            FilterTool("≡",filter,Modifier.height(30.dp)){onFilter(when(filter){"全部"->"正常";"正常"->"即将到期";"即将到期"->"已过期";else->"全部"})}
+            FilterTool("↕",if(sortMode=="到期近") L("近到远") else L("远到近"),Modifier.height(30.dp)){onSort()}
+            Box(Modifier.height(30.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF93C5FD).copy(alpha=.25f)).clickable{}.padding(horizontal=10.dp),contentAlignment=Alignment.Center){Text("$count",fontSize=12.sp,fontWeight=FontWeight.Bold,color=Color(0xFF3B82F6))}
+        }
     }
 }
 
 @Composable fun FilterTool(icon:String,text:String,m:Modifier,onClick:()->Unit){
-    Row(m.height(36.dp).clip(RoundedCornerShape(13.dp)).background(Color(0xFF007AFF)).clickable{onClick()}.padding(horizontal=8.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center){Text(icon,fontSize=12.sp,color=Color.White);Spacer(Modifier.width(5.dp));Text(text,fontSize=12.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=1)}
+    Row(m.height(30.dp).clip(RoundedCornerShape(10.dp)).background(Color(0xFF3B82F6)).clickable{onClick()}.padding(horizontal=10.dp),verticalAlignment=Alignment.CenterVertically,horizontalArrangement=Arrangement.Center){Text(icon,fontSize=11.sp,color=Color.White);Spacer(Modifier.width(4.dp));Text(text,fontSize=11.sp,fontWeight=FontWeight.SemiBold,color=Color.White,maxLines=1)}
 }
 
 
-@Composable fun CompactSimCard(r:PhoneNumberRecord,on编辑:(PhoneNumberRecord)->Unit,onDel:(PhoneNumberRecord)->Unit,onTraffic:(PhoneNumberRecord)->Unit,onKeep:(PhoneNumberRecord,Int)->Unit,days:Long?,remindDays:Int,showFlag:Boolean=true){
+@Composable fun CompactSimCard(r:PhoneNumberRecord,on编辑:(PhoneNumberRecord)->Unit,onDel:(PhoneNumberRecord)->Unit,onTraffic:(PhoneNumberRecord)->Unit,onKeep:(PhoneNumberRecord,Int)->Unit,days:Long?,remindDays:Int,showFlag:Boolean=true,dark:Boolean=false){
     val progress=when{days==null->.35f; days<0->.04f; else->(days.coerceIn(0,120).toFloat()/120f).coerceIn(.08f,.98f)}
     var hidden by remember{ mutableStateOf(true) }
     var del by remember{ mutableStateOf(false) }
     var keep by remember{ mutableStateOf(false) }
-    Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=Color.White.copy(alpha=.35f)),elevation=CardDefaults.cardElevation(0.dp),modifier=Modifier.fillMaxWidth().height(150.dp).border(1.dp,Color.White.copy(alpha=.50f),RoundedCornerShape(24.dp))){
+    val cardBg=if(dark) Color(0xFF1E2430).copy(alpha=.85f) else Color.White.copy(alpha=.35f); val cardBorder=if(dark) Color(0xFF2A3040).copy(alpha=.60f) else Color.White.copy(alpha=.50f); val txtPrimary=if(dark) Color(0xFFE8EAED) else Color(0xFF111827); val txtSecondary=if(dark) Color(0xFF9AA0A6) else Color(0xFF6B7280); val txtBody=if(dark) Color(0xFFD1D5DB) else Color(0xFF374151)
+    Card(shape=RoundedCornerShape(24.dp),colors=CardDefaults.cardColors(containerColor=cardBg),elevation=CardDefaults.cardElevation(0.dp),modifier=Modifier.fillMaxWidth().height(150.dp).border(1.dp,cardBorder,RoundedCornerShape(24.dp))){
         Box(Modifier.fillMaxSize()){
             // frosted glass shimmer
-            Box(Modifier.fillMaxSize().background(Brush.verticalGradient(listOf(Color.White.copy(alpha=.45f),Color.White.copy(alpha=.22f),Color.White.copy(alpha=.38f)))).clip(RoundedCornerShape(24.dp)))
+            val glass=if(dark) listOf(Color(0xFF1E2430).copy(alpha=.15f),Color(0xFF1E2430).copy(alpha=.06f),Color(0xFF1E2430).copy(alpha=.12f)) else listOf(Color.White.copy(alpha=.18f),Color.White.copy(alpha=.08f),Color.White.copy(alpha=.15f)); Box(Modifier.fillMaxSize().background(Brush.verticalGradient(glass)).clip(RoundedCornerShape(24.dp)))
             if(showFlag){
                 FlagArtPanel(r,Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.43f))
-                Box(Modifier.align(Alignment.CenterEnd).fillMaxHeight().fillMaxWidth(.56f).background(Brush.horizontalGradient(listOf(Color.White.copy(alpha=.60f),Color.White.copy(alpha=.40f),Color.White.copy(alpha=.15f),Color.Transparent))))
             }
             Column(Modifier.fillMaxSize().padding(start=10.dp,end=10.dp,top=7.dp,bottom=6.dp),verticalArrangement=Arrangement.SpaceBetween){
                 Row(verticalAlignment=Alignment.CenterVertically){
                     OperatorLogo44(r.operator.ifBlank{r.countryName}, Countries.list.firstOrNull{it.code==r.countryCode && it.name==r.countryName}?.iso ?: Countries.list.firstOrNull{it.code==r.countryCode}?.iso)
                     Spacer(Modifier.width(8.dp))
-                    Text(r.operator.ifBlank{r.countryName},fontSize=16.sp,fontWeight=FontWeight.Bold,color=Color(0xFF111827),maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+                    Text(r.operator.ifBlank{r.countryName},fontSize=16.sp,fontWeight=FontWeight.Bold,color=txtPrimary,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
                     if(r.longTerm) Text("Long-term",fontSize=9.sp,fontWeight=FontWeight.Bold,color=Color.White,modifier=Modifier.clip(RoundedCornerShape(999.dp)).background(Color(0xFF34C759)).padding(horizontal=6.dp,vertical=2.dp))
                     else Text("∞",fontSize=11.sp,fontWeight=FontWeight.Bold,color=Color.White,modifier=Modifier.clip(RoundedCornerShape(999.dp)).background(Color(0xFF007AFF)).padding(horizontal=6.dp,vertical=2.dp))
                     Spacer(Modifier.width(5.dp))
-                    Text(r.countryName,fontSize=12.sp,color=Color(0xFF6B7280),maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.widthIn(max=72.dp))
+                    Text(r.countryName,fontSize=12.sp,color=txtSecondary,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.widthIn(max=72.dp))
                 }
                 Row(verticalAlignment=Alignment.CenterVertically){
-                    Text(L("预付费")+" · ",fontSize=12.sp,color=Color(0xFF374151),maxLines=1)
+                    Text(L("预付费")+" · ",fontSize=12.sp,color=txtBody,maxLines=1)
                     Box(Modifier.size(13.dp).clip(RoundedCornerShape(99.dp)).background(Color(0xFF22C55E)),contentAlignment=Alignment.Center){Text("✓",fontSize=8.sp,color=Color.White)}
                     Spacer(Modifier.width(4.dp))
                     Text("${formatDateByLang(r.expireDate, LocalAppLanguage.current)} · ${expireText(LocalAppLanguage.current,days)}",fontSize=12.sp,color=Color(0xFF16A34A),fontWeight=FontWeight.SemiBold,maxLines=1,overflow=TextOverflow.Ellipsis)
                 }
                 Row(verticalAlignment=Alignment.CenterVertically){
-                    Text("☎ ${r.countryCode} ${if(hidden) "•••• ${r.number.takeLast(4)}" else formatNumber(r.number)}",fontSize=15.sp,fontWeight=FontWeight.Medium,color=Color(0xFF111827),maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
+                    Text("☎ ${r.countryCode} ${if(hidden) "•••• ${r.number.takeLast(4)}" else formatNumber(r.number)}",fontSize=15.sp,fontWeight=FontWeight.Medium,color=txtPrimary,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f))
                     Text(r.balance.ifBlank{estimateBalance(r)},fontSize=14.sp,fontWeight=FontWeight.SemiBold,color=Color(0xFF007AFF),maxLines=1)
                     Spacer(Modifier.width(8.dp))
-                    Text(if(hidden)"◉" else "◎",fontSize=16.sp,color=Color(0xFF374151),modifier=Modifier.clickable{hidden=!hidden})
+                    Text(if(hidden)"◉" else "◎",fontSize=16.sp,color=txtBody,modifier=Modifier.clickable{hidden=!hidden})
                 }
-                Row(verticalAlignment=Alignment.CenterVertically){Text("EID ${r.eid.ifBlank{fakeEidForCard(r)}}",fontSize=10.sp,color=Color(0xFF6B7280),maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f)); Text(signalIcon(r.signalStatus)+" "+r.signalStatus,fontSize=10.sp,color=Color(0xFF16A34A),maxLines=1)}
+                Row(verticalAlignment=Alignment.CenterVertically){Text("EID ${r.eid.ifBlank{fakeEidForCard(r)}}",fontSize=10.sp,color=txtSecondary,maxLines=1,overflow=TextOverflow.Ellipsis,modifier=Modifier.weight(1f)); Text(signalIcon(r.signalStatus)+" "+r.signalStatus,fontSize=10.sp,color=Color(0xFF16A34A),maxLines=1)}
                 Box(Modifier.fillMaxWidth(.80f).height(4.dp).clip(RoundedCornerShape(2.dp)).background(Color(0xFFE5E7EB))){Box(Modifier.fillMaxWidth(progress).fillMaxHeight().background(Color(0xFF22C55E)))}
                 Spacer(Modifier.height(2.dp))
                 Row(horizontalArrangement=Arrangement.spacedBy(18.dp)){
@@ -1399,11 +1401,11 @@ object OperatorLogoAssets {
         LazyColumn(Modifier.fillMaxSize().padding(horizontal=22.dp),verticalArrangement=Arrangement.spacedBy(9.dp)){
             item{ FilterToolRow(filter,sortMode,on筛选,on排序,shown.size) }
             if(shown.isEmpty()) item{ Box(Modifier.fillMaxWidth().height(260.dp),contentAlignment=Alignment.Center){ Column(horizontalAlignment=Alignment.CenterHorizontally){Text(L("暂无号码"),fontSize=18.sp,fontWeight=FontWeight.SemiBold);Text(L("点击右下角添加号码"),fontSize=13.sp,color=Color(0xFF8E8E93))} } }
-            else items(shown,key={it.id}){ r-> CompactSimCard(r,on编辑,onDel,onTraffic,onKeep,daysOf(r),settings.remind天,settings.showFlag) }
+            else items(shown,key={it.id}){ r-> CompactSimCard(r,on编辑,onDel,onTraffic,onKeep,daysOf(r),settings.remind天,settings.showFlag,settings.dark) }
             item{ Spacer(Modifier.height(90.dp)) }
         }
         Box(Modifier.align(Alignment.BottomEnd).padding(end=20.dp,bottom=86.dp).size(56.dp)){
-            FloatingActionButton(onClick=onAdd,containerColor=Color(0xFF007AFF),contentColor=Color.White,shape=RoundedCornerShape(20.dp),modifier=Modifier.fillMaxSize()){Text("＋",fontSize=27.sp,fontWeight=FontWeight.Medium)}
+            FloatingActionButton(onClick=onAdd,containerColor=Color(0xFF3B82F6),contentColor=Color.White,shape=RoundedCornerShape(20.dp),modifier=Modifier.fillMaxSize()){Text("＋",fontSize=27.sp,fontWeight=FontWeight.Medium)}
         }
     }
 }
@@ -2161,7 +2163,7 @@ fun cloudPost(s:App设置,path:String,body:String,lang:String="简体中文",onR
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
                 Box(Modifier.size(34.dp).clip(RoundedCornerShape(17.dp)).background(Color(0xFF007AFF)),contentAlignment=Alignment.Center){Text("i",color=Color.White,fontWeight=FontWeight.Bold)}
                 Spacer(Modifier.width(10.dp))
-                Text("Sim Jiang v2.8.60\n"+L("开发者")+"：伍六柒\n"+L("本地数据存储"),fontSize=13.sp,color=Color(0xFF4B5563),lineHeight=20.sp)
+                Text("Sim Jiang v2.8.63\n"+L("开发者")+"：伍六柒\n"+L("本地数据存储"),fontSize=13.sp,color=Color(0xFF4B5563),lineHeight=20.sp)
             }
         }
         Spacer(Modifier.height(20.dp))
