@@ -98,6 +98,7 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.text.AnnotatedString
 import androidx.core.content.FileProvider
+import com.sansim.app.esim.EsimScreen
 import androidx.compose.ui.window.Dialog
 import kotlin.concurrent.thread
 import kotlin.math.roundToInt
@@ -295,12 +296,14 @@ class MainActivity: ComponentActivity(){ private val req=registerForActivityResu
                 })
             } else {
                 Column(Modifier.fillMaxSize().background(MaterialTheme.colorScheme.background)){
-                    SimHubTopBar(screen,settings.dark,{ settings=settings.copy(dark=!settings.dark); DataStore.save设置(ctx,settings) },search,{ search=it }){ target->
-                        when(target){
-                            "add" -> edit=PhoneNumberRecord()
-                            "export" -> toolMessage=tx("导出数据已准备")+"："+tx("当前共有")+" ${records.size} "+tx("个号码")+"。\n"+tx("数据已保存在本机应用存储中，后续可接入文件导出。")
-                            "grid" -> screen="countries"
-                            else -> screen=target
+                    if (screen != "esim") {
+                        SimHubTopBar(screen,settings.dark,{ settings=settings.copy(dark=!settings.dark); DataStore.save设置(ctx,settings) },search,{ search=it }){ target->
+                            when(target){
+                                "add" -> edit=PhoneNumberRecord()
+                                "export" -> toolMessage=tx("导出数据已准备")+"："+tx("当前共有")+" ${records.size} "+tx("个号码")+"。\n"+tx("数据已保存在本机应用存储中，后续可接入文件导出。")
+                                "grid" -> screen="countries"
+                                else -> screen=target
+                            }
                         }
                     }
                     Box(Modifier.weight(1f).fillMaxWidth()){
@@ -317,6 +320,7 @@ class MainActivity: ComponentActivity(){ private val req=registerForActivityResu
                                 },{s->settings=s;DataStore.save设置(ctx,s); autoCloudSync(records,s)})
                             }
                             "countries"->CountryPage()
+                            "esim"->EsimScreen()
                         }
                         updateInfo?.let { info -> UpdateDialog(currentVersion = currentVersion, updateInfo = info, onDismiss = { updateInfo = null }) }
                     }
@@ -390,7 +394,7 @@ fun shareExportFile(ctx:Context,fileName:String,mime:String,content:String,title
             }
         }else{
             Row(Modifier.fillMaxWidth(),verticalAlignment=Alignment.CenterVertically){
-                Text(when(screen){"tools"->L("工具");"settings"->L("设置");else->L("号码")},fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f),color=if(dark) Color.White else Color(0xFF111827))
+                Text(when(screen){"tools"->L("工具");"settings"->L("设置");"esim"->"eSIM";else->L("号码")},fontSize=26.sp,fontWeight=FontWeight.Bold,modifier=Modifier.weight(1f),color=if(dark) Color.White else Color(0xFF111827))
             }
         }
     }
@@ -688,7 +692,7 @@ fun signalIcon(s:String)=when{ s.contains("离线")||s.contains("无") -> "○";
 @Composable fun SimHubBottomNav(screen:String,on:(String)->Unit){
     Surface(color=MaterialTheme.colorScheme.surface.copy(alpha=.98f),shadowElevation=7.dp){
         Row(Modifier.fillMaxWidth().height(70.dp).padding(horizontal=20.dp),horizontalArrangement=Arrangement.SpaceAround,verticalAlignment=Alignment.CenterVertically){
-            listOf("home" to L("号码"),"tools" to L("工具"),"settings" to L("设置")).forEach{ item->
+            listOf("home" to L("号码"),"tools" to L("工具"),"esim" to "eSIM","settings" to L("设置")).forEach{ item->
                 val sel=screen==item.first
                 val scale by animateFloatAsState(targetValue=if(sel)1.02f else 1f,animationSpec=tween(120),label="navScale")
                 val tint=if(sel) Color(0xFF007AFF) else Color(0xFF8E8E93)
@@ -716,6 +720,11 @@ fun signalIcon(s:String)=when{ s.contains("离线")||s.contains("无") -> "○";
                 drawLine(color,Offset(w*.38f,h*.34f),Offset(w*.38f,h*.24f),strokeWidth=2.2f)
                 drawLine(color,Offset(w*.62f,h*.34f),Offset(w*.62f,h*.24f),strokeWidth=2.2f)
                 drawLine(color,Offset(w*.38f,h*.24f),Offset(w*.62f,h*.24f),strokeWidth=2.2f)
+            }
+            "esim"->{
+                drawRoundRect(color,topLeft=Offset(w*.18f,h*.20f),size=Size(w*.64f,h*.60f),cornerRadius=androidx.compose.ui.geometry.CornerRadius(w*.08f,w*.08f),style=stroke)
+                drawLine(color,Offset(w*.32f,h*.48f),Offset(w*.68f,h*.48f),strokeWidth=2.2f)
+                drawLine(color,Offset(w*.32f,h*.56f),Offset(w*.58f,h*.56f),strokeWidth=1.8f)
             }
             else->{
                 drawCircle(color,radius=w*.26f,center=Offset(w*.5f,h*.5f),style=stroke)
