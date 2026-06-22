@@ -19,27 +19,64 @@ class TelephonyApduInterface(
         const val TAG = "TelephonyApdu"
         
         // 隐藏 API 反射方法
-        private val iccOpenLogicalChannelByPort: Method by lazy {
+        private val iccOpenLogicalChannelBySlot: Method by lazy {
             TelephonyManager::class.java.getMethod(
-                "iccOpenLogicalChannelByPort",
-                Int::class.java, Int::class.java, String::class.java, Int::class.java
+                "iccOpenLogicalChannelBySlot",
+                Int::class.java, String::class.java, Int::class.java
             )
         }
         
-        private val iccCloseLogicalChannelByPort: Method by lazy {
+        private val iccOpenLogicalChannelByPort: Method? by lazy {
+            try {
+                TelephonyManager::class.java.getMethod(
+                    "iccOpenLogicalChannelByPort",
+                    Int::class.java, Int::class.java, String::class.java, Int::class.java
+                )
+            } catch (e: Exception) {
+                LogCollector.e(TAG, "iccOpenLogicalChannelByPort not found", e)
+                null
+            }
+        }
+        
+        private val iccCloseLogicalChannelBySlot: Method by lazy {
             TelephonyManager::class.java.getMethod(
-                "iccCloseLogicalChannelByPort",
-                Int::class.java, Int::class.java, Int::class.java
+                "iccCloseLogicalChannelBySlot",
+                Int::class.java, Int::class.java
             )
         }
         
-        private val iccTransmitApduLogicalChannelByPort: Method by lazy {
+        private val iccCloseLogicalChannelByPort: Method? by lazy {
+            try {
+                TelephonyManager::class.java.getMethod(
+                    "iccCloseLogicalChannelByPort",
+                    Int::class.java, Int::class.java, Int::class.java
+                )
+            } catch (e: Exception) {
+                LogCollector.e(TAG, "iccCloseLogicalChannelByPort not found", e)
+                null
+            }
+        }
+        
+        private val iccTransmitApduLogicalChannelBySlot: Method by lazy {
             TelephonyManager::class.java.getMethod(
-                "iccTransmitApduLogicalChannelByPort",
+                "iccTransmitApduLogicalChannelBySlot",
                 Int::class.java, Int::class.java, Int::class.java, Int::class.java,
-                Int::class.java, Int::class.java, Int::class.java, Int::class.java,
-                String::class.java
+                Int::class.java, Int::class.java, Int::class.java, String::class.java
             )
+        }
+        
+        private val iccTransmitApduLogicalChannelByPort: Method? by lazy {
+            try {
+                TelephonyManager::class.java.getMethod(
+                    "iccTransmitApduLogicalChannelByPort",
+                    Int::class.java, Int::class.java, Int::class.java, Int::class.java,
+                    Int::class.java, Int::class.java, Int::class.java, Int::class.java,
+                    String::class.java
+                )
+            } catch (e: Exception) {
+                LogCollector.e(TAG, "iccTransmitApduLogicalChannelByPort not found", e)
+                null
+            }
         }
     }
     
@@ -52,23 +89,36 @@ class TelephonyApduInterface(
      */
     fun openLogicalChannel(aid: String): Int {
         return try {
-            Log.d(TAG, "Opening logical channel: slot=$slotId, port=$portId, aid=$aid")
+            LogCollector.d(TAG, "Opening logical channel: slot=$slotId, port=$portId, aid=$aid")
             
-            val response = iccOpenLogicalChannelByPort.invoke(
-                tm, slotId, portId, aid, 0
-            ) as IccOpenLogicalChannelResponse
+            // 优先使用 ByPort，如果不支持则使用 BySlot
+            val response = if (iccOpenLogicalChannelByPort != null) {
+                LogCollector.d(TAG, "Using iccOpenLogicalChannelByPort")
+                iccOpenLogicalChannelByPort!!.invoke(tm, slotId, portId, aid, 0)
+            } else {
+                LogCollector.d(TAG, "Using iccOpenLogicalChannelBySlot")
+                iccOpenLogicalChannelBySlot.invoke(tm, slotId, aid, 0)
+            } as IccOpenLogicalChannelResponse
+            
+            LogCollector.d(TAG, "Response: status=${response.status}, channel=${response.channel}")
             
             if (response.status == IccOpenLogicalChannelResponse.STATUS_NO_ERROR && 
                 response.channel != IccOpenLogicalChannelResponse.INVALID_CHANNEL) {
                 channelHandle = response.channel
-                Log.d(TAG, "Channel opened: $channelHandle")
+                LogCollector.d(TAG, "Channel opened: $channelHandle")
                 channelHandle
             } else {
-                Log.e(TAG, "Failed to open channel: status=${response.status}")
+                LogCollector.e(TAG, "Failed to open channel: status=${response.status}, channel=${response.channel}")
                 -1
             }
         } catch (e: Exception) {
-            Log.e(TAG, "openLogicalChannel failed", e)
+            LogCollector.e(TAG, "openLogicalChannel failed: ${e.javaClass.simpleName}: ${e.message}")
+            // 打印根本原因
+            var cause = e.cause
+            while (cause != null) {
+                LogCollector.e(TAG, "  Caused by: ${cause.javaClass.simpleName}: ${cause.message}")
+                cause = cause.cause
+            }
             -1
         }
     }
@@ -80,11 +130,15 @@ class TelephonyApduInterface(
         if (channelHandle < 0) return
         
         try {
-            Log.d(TAG, "Closing channel: $channelHandle")
-            iccCloseLogicalChannelByPort.invoke(tm, slotId, portId, channelHandle)
+            LogCollector.d(TAG, "Closing channel: $channelHandle")
+            if (iccCloseLogicalChannelByPort != null) {
+                iccCloseLogicalChannelByPort!!.invoke(tm, slotId, portId, channelHandle)
+            } else {
+                iccCloseLogicalChannelBySlot.invoke(tm, slotId, channelHandle)
+            }
             channelHandle = -1
         } catch (e: Exception) {
-            Log.e(TAG, "closeLogicalChannel failed", e)
+            LogCollector.e(TAG, "closeLogicalChannel failed", e)
         }
     }
     
@@ -102,22 +156,29 @@ class TelephonyApduInterface(
         cla: Int, ins: Int, p1: Int, p2: Int, p3: Int, data: String?
     ): String? {
         if (channelHandle < 0) {
-            Log.e(TAG, "No open channel")
+            LogCollector.e(TAG, "No open channel")
             return null
         }
         
         return try {
-            Log.d(TAG, "Transmit APDU: cla=$cla ins=$ins p1=$p1 p2=$p2 p3=$p3 data=$data")
+            LogCollector.d(TAG, "Transmit APDU: cla=$cla ins=$ins p1=$p1 p2=$p2 p3=$p3 data=$data")
             
-            val result = iccTransmitApduLogicalChannelByPort.invoke(
-                tm, slotId, portId, channelHandle,
-                cla, ins, p1, p2, p3, data
-            ) as? String
+            val result = if (iccTransmitApduLogicalChannelByPort != null) {
+                iccTransmitApduLogicalChannelByPort!!.invoke(
+                    tm, slotId, portId, channelHandle,
+                    cla, ins, p1, p2, p3, data
+                )
+            } else {
+                iccTransmitApduLogicalChannelBySlot.invoke(
+                    tm, slotId, channelHandle,
+                    cla, ins, p1, p2, p3, data
+                )
+            } as? String
             
-            Log.d(TAG, "APDU response: $result")
+            LogCollector.d(TAG, "APDU response: $result")
             result
         } catch (e: Exception) {
-            Log.e(TAG, "transmitApdu failed", e)
+            LogCollector.e(TAG, "transmitApdu failed", e)
             null
         }
     }
@@ -147,8 +208,9 @@ class TelephonyApduInterface(
     fun isAvailable(): Boolean {
         return try {
             // 尝试调用隐藏 API 检查是否可用
-            iccOpenLogicalChannelByPort != null
+            iccOpenLogicalChannelBySlot != null
         } catch (e: Exception) {
+            LogCollector.e(TAG, "isAvailable failed", e)
             false
         }
     }

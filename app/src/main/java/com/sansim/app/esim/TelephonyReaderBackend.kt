@@ -22,7 +22,7 @@ class TelephonyReaderBackend(
     private var connected = false
     
     override suspend fun connect() {
-        Log.d(TAG, "connect: slot=$slotId, port=$portId")
+        LogCollector.d(TAG, "connect: slot=$slotId, port=$portId")
         
         val tm = context.getSystemService(Context.TELEPHONY_SERVICE) as TelephonyManager
         telephonyApdu = TelephonyApduInterface(tm, slotId, portId)
@@ -32,11 +32,11 @@ class TelephonyReaderBackend(
         }
         
         connected = true
-        Log.d(TAG, "connect: OK")
+        LogCollector.d(TAG, "connect: OK")
     }
     
     override fun disconnect() {
-        Log.d(TAG, "disconnect")
+        LogCollector.d(TAG, "disconnect")
         telephonyApdu?.closeLogicalChannel()
         telephonyApdu = null
         connected = false
@@ -44,28 +44,28 @@ class TelephonyReaderBackend(
     
     override fun openChannel(aid: ByteArray): Boolean {
         val aidHex = aid.joinToString("") { "%02X".format(it) }
-        Log.d(TAG, "openChannel: $aidHex")
+        LogCollector.d(TAG, "openChannel: $aidHex")
         
         val apdu = telephonyApdu ?: return false
         val channel = apdu.openLogicalChannel(aidHex)
         
         if (channel >= 0) {
-            Log.d(TAG, "openChannel: OK, channel=$channel")
+            LogCollector.d(TAG, "openChannel: OK, channel=$channel")
             return true
         }
         
-        Log.e(TAG, "openChannel: failed")
+        LogCollector.e(TAG, "openChannel: failed")
         return false
     }
     
     override fun closeChannel(channel: Int) {
-        Log.d(TAG, "closeChannel: $channel")
+        LogCollector.d(TAG, "closeChannel: $channel")
         telephonyApdu?.closeLogicalChannel()
     }
     
     override fun transmit(command: ByteArray): ByteArray {
         val cmdHex = command.joinToString("") { "%02X".format(it) }
-        Log.d(TAG, "transmit: $cmdHex")
+        LogCollector.d(TAG, "transmit: $cmdHex")
         
         val apdu = telephonyApdu ?: return byteArrayOf()
         val response = apdu.transmitRawApdu(cmdHex)
@@ -75,11 +75,11 @@ class TelephonyReaderBackend(
             val responseBytes = response.chunked(2)
                 .map { it.toInt(16).toByte() }
                 .toByteArray()
-            Log.d(TAG, "transmit response: ${responseBytes.joinToString("") { "%02X".format(it) }}")
+            LogCollector.d(TAG, "transmit response: ${responseBytes.joinToString("") { "%02X".format(it) }}")
             return responseBytes
         }
         
-        Log.e(TAG, "transmit: failed")
+        LogCollector.e(TAG, "transmit: failed")
         return byteArrayOf()
     }
     
