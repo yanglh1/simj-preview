@@ -41,6 +41,12 @@ def db():
         day text not null,
         primary key(api_key,record_id,channel,day)
     )""")
+    conn.execute("""create table if not exists sync_backups(
+        id integer primary key autoincrement,
+        api_key text not null,
+        payload text not null,
+        backed_up_at integer not null
+    )""")
     if OLD_KEY_FILE.exists():
         old=clean_key(OLD_KEY_FILE.read_text())
         if old and KEY_RE.match(old):
@@ -191,8 +197,14 @@ class H(BaseHTTPRequestHandler):
         payload=self._read_json()
         if payload is None: return self._json(400, {'ok':False,'error':'bad json'})
         if self.path.startswith('/api/sync'):
-            conn=db(); conn.execute('insert or replace into users values(?,?,?)',(api_key,json.dumps(payload,ensure_ascii=False),int(time.time()))); conn.commit(); conn.close()
-            return self._json(200, {'ok':True,'records':len(payload.get('records') or []),'message':'同步成功','apiKeyTail':api_key[-6:]})
+            now=int(time.time())
+            conn=db()
+            old=conn.execute('select payload from users where api_key=?',(api_key,)).fetchone()
+            if old and old['payload']:
+                conn.execute('insert into sync_backups(api_key,payload,backed_up_at) values(?,?,?)',(api_key,old['payload'],now))
+            conn.execute('insert or replace into users values(?,?,?)',(api_key,json.dumps(payload,ensure_ascii=False),now))
+            conn.commit(); conn.close()
+            return self._json(200, {'ok':True,'records':len(payload.get('records') or []),'message':'同步成功，旧数据已自动备份','apiKeyTail':api_key[-6:]})
         if self.path.startswith('/api/test-telegram'):
             s=payload.get('settings') or payload
             ok,msg=send_tg(s.get('botToken'),s.get('chatId'),'✅ simJ 云端 Telegram 测试成功\nKey: ****'+api_key[-6:])
