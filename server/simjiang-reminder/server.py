@@ -298,7 +298,7 @@ def fetch_key_counts(conn, api_key):
     return settings, records
 
 
-def purge_old_backups(conn, api_key, keep=200):
+def purge_old_backups(conn, api_key, keep=30):
     rows = conn.execute('SELECT id FROM sync_backups WHERE api_key=? ORDER BY created_at DESC, id DESC', (api_key,)).fetchall()
     if len(rows) <= keep:
         return
@@ -635,6 +635,7 @@ class H(BaseHTTPRequestHandler):
                 if current_records or (current_payload.get('settings') or {}):
                     conn.execute('INSERT INTO sync_backups(api_key, payload, reason, records_count, created_at) VALUES(?,?,?,?,?)',
                                  (api_key, json.dumps(current_payload, ensure_ascii=False), 'replace', len(current_records), now))
+                    purge_old_backups(conn, api_key)
                 replace_records(conn, api_key, records_in)
                 upsert_settings_from_payload(conn, api_key, settings_in)
             else:
